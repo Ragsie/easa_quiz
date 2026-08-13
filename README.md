@@ -10,7 +10,12 @@ Modern Dark UI: A clean, distraction-free interface built for focus during long 
 
 High Performance: Designed for instant responsiveness and low system resource consumption.
 
-Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers.
+Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers. 
+
+Questions has been made with help of AI with lufthansa materials
+
+supported modules
+Module 13
 
 ### Technical Stack
 Language: C++
