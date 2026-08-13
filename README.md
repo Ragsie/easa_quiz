@@ -4,13 +4,13 @@ A modern, high-performance, and user-friendly quiz application designed for stud
 ## Key Features
 Targeted B2 Syllabus: A robust quiz engine optimized for handling large volumes of complex technical aeronautical data.
 
-### "All-in-One" Architecture: The entire application, including the full question database, is compiled directly into a single, standalone .exe file. No external dependencies, loose text files, or complex folder structures.
+"All-in-One" Architecture: The entire application, including the full question database, is compiled directly into a single, standalone .exe file. No external dependencies, loose text files, or complex folder structures.
 
-### Modern Dark UI: A clean, distraction-free interface built for focus during long study sessions.
+Modern Dark UI: A clean, distraction-free interface built for focus during long study sessions.
 
-### High Performance: Designed for instant responsiveness and low system resource consumption.
+High Performance: Designed for instant responsiveness and low system resource consumption.
 
-### Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers.
+Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers.
 
 ##Technical Stack
 Language: C++
