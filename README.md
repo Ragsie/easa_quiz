@@ -12,7 +12,7 @@ High Performance: Designed for instant responsiveness and low system resource co
 
 Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers.
 
-##Technical Stack
+### Technical Stack
 Language: C++
 
 Framework: Qt 6
