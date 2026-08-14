@@ -23,6 +23,7 @@ Module 13
 1. download release
 2. unfold the (easa b2 quiz.exe.7z) inside
 3. run it
+
 Program is compressed to make it fit on github
 
 ### Technical Stack
