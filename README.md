@@ -31,3 +31,11 @@ Language: C++
 Framework: Qt 6
 works on windows
 Distribution: Single-file distribution via Enigma Virtual Box for seamless, plug-and-play user experience.
+
+## ☕ Support The Project
+If this project helped you or inspired your own build, consider buying me a cup of coffee. It would make my day and support me in developing more!
+
+| Coin | QR | Address |
+| :-- | :--- | :---: |
+| **Bitcoin Cash** | <img width="160" height="161" alt="qrcode" src="https://github.com/user-attachments/assets/254aece9-8957-4d34-812c-885ac2e839fa" /> | `bitcoincash:qzp4c7klef8q6gxycvc84dx0fnhnfxkkpy6xda56h3` |
+| **Bitcoin** | <img width="160" height="162" alt="image" src="https://github.com/user-attachments/assets/e5b1cd3d-fd26-46fc-88db-2aa931b4f5d4" /> | `3QrAPVGC3aypf3LG5DYYRnjwjKuFMzkeJE` |
