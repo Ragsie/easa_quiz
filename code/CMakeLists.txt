@@ -8,12 +8,29 @@ qt_standard_project_setup()
 qt_add_executable(b2_quiz
     WIN32 MACOSX_BUNDLE
     main.cpp
-    questions_part1.cpp
-    questions_part2.cpp
-    questions_part3.cpp
-    questions_part4.cpp
-
-
+    question.h
+    ATAtof.cpp
+    ATA06.cpp
+    ATA21.cpp
+    ATA22.cpp
+    ATA23.cpp
+    ATA24.cpp
+    ATA25.cpp
+    ATA26.cpp
+    ATA27.cpp
+    ATA28.cpp
+    ATA29.cpp
+    ATA30.cpp
+    ATA31.cpp
+    ATA32.cpp
+    ATA33.cpp
+    ATA34.cpp
+    ATA35.cpp
+    ATA36.cpp
+    ATA38.cpp
+    ATA42.cpp
+    ATA44.cpp
+    ATA46.cpp
 
 
 )
