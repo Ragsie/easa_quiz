@@ -35,6 +35,8 @@ qt_add_executable(Easa-B2-Quiz
     question_bank/ATAtof.cpp
 )
 
+target_include_directories(Easa-B2-Quiz PRIVATE .)
+
 target_link_libraries(Easa-B2-Quiz PRIVATE
     Qt6::Core
     Qt6::Gui
