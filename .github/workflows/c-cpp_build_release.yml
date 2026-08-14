@@ -1,0 +1,62 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Ninja
+        uses: ashutosh-singh-007/action-ninja-install@v1
+
+      - name: Install Qt & MinGW
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.6.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_mingw'
+          tools: 'tools_mingw90'
+
+      # Her fortæller vi CMake, at kildekoden ligger i "code" mappen:
+      - name: Configure CMake
+        run: |
+          cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Project
+        run: |
+          cmake --build build --config Release
+
+      # Kopierer .exe fra build-mappen og kører windeployqt
+      - name: Collect Dependencies (windeployqt)
+        run: |
+          mkdir dist
+          copy build\b2_quiz.exe dist\
+          windeployqt --release --no-translations --no-system-d3d-compiler dist\b2_quiz.exe
+
+      - name: Package Single-File EXE (Enigma Virtual Box)
+        run: |
+          choco install enigma-virtual-box --no-progress
+          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbgen.exe" dist\b2_quiz.exe dist\b2_quiz_standalone.exe dist\
+          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" generated_project.evb
+
+      - name: Create GitHub Release and Upload File
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Easa_B2_Quiz.exe
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
