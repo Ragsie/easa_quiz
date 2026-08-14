@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Cache Chocolatey / Tools (Ninja & Enigma Virtual Box)
+      # 1. Cache Chocolatey / Tools
       - name: Cache Tools (Chocolatey)
         uses: actions/cache@v4
         id: cache-tools
@@ -65,28 +65,28 @@ jobs:
       - name: Collect Dependencies (windeployqt)
         run: |
           mkdir dist
-          copy build\b2_quiz.exe dist\
-          windeployqt --release --no-translations --no-system-d3d-compiler dist\b2_quiz.exe
+          copy build\Easa-B2-Quiz.exe dist\
+          windeployqt --release --no-translations --no-system-d3d-compiler dist\Easa-B2-Quiz.exe
 
-      # 5. Pak til Single-File EXE
+      # 5. Pak til Single-File EXE (Easa-B2-Quiz.exe)
       - name: Package Single-File EXE (Enigma Virtual Box)
         run: |
-          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbgen.exe" dist\b2_quiz.exe dist\b2_quiz_standalone.exe dist\
+          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbgen.exe" dist\Easa-B2-Quiz.exe dist\Easa-B2-Quiz.exe dist\
           & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" generated_project.evb
 
       # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EASA_B2_Quiz_Executable
-          path: dist/b2_quiz_standalone.exe
+          name: Easa-B2-Quiz
+          path: dist/Easa-B2-Quiz.exe
 
       # 7. Opret GitHub Release (hvis der er et git tag)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Easa_B2_Quiz.exe
+          files: dist/Easa-B2-Quiz.exe
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
