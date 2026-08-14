@@ -2,6 +2,7 @@ name: Build & Publish Release
 
 on:
   push:
+    branches: [ "main" ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -17,8 +18,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Ninja
-        uses: ashutosh-singh-007/action-ninja-install@v1
+      - name: Install Ninja & Tools
+        run: |
+          choco install ninja --no-progress
 
       - name: Install Qt & MinGW
         uses: jurplel/install-qt-action@v3
@@ -27,9 +29,7 @@ jobs:
           host: 'windows'
           target: 'desktop'
           arch: 'win64_mingw'
-          tools: 'tools_mingw90'
 
-      # Her fortæller vi CMake, at kildekoden ligger i "code" mappen:
       - name: Configure CMake
         run: |
           cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
@@ -38,7 +38,6 @@ jobs:
         run: |
           cmake --build build --config Release
 
-      # Kopierer .exe fra build-mappen og kører windeployqt
       - name: Collect Dependencies (windeployqt)
         run: |
           mkdir dist
@@ -51,10 +50,19 @@ jobs:
           & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbgen.exe" dist\b2_quiz.exe dist\b2_quiz_standalone.exe dist\
           & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" generated_project.evb
 
-      - name: Create GitHub Release and Upload File
+      # Gemmer filen som et Artifact (så den kan downloades ved enhver almindelig push)
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EASA_B2_Quiz_Executable
+          path: dist/b2_quiz_standalone.exe
+
+      # Opretter officiel GitHub Release (hvis der er pushet et versions-tag som v1.0)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Easa_B2_Quiz.exe
+          files: dist/b2_quiz_standalone.exe
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
