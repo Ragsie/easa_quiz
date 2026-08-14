@@ -8,35 +8,33 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 qt_standard_project_setup()
 
-# Omdøbt fra b2_quiz til Easa-B2-Quiz
 qt_add_executable(Easa-B2-Quiz
     main.cpp
     question.h
-    ATA06.cpp
-    ATA21.cpp
-    ATA22.cpp
-    ATA23.cpp
-    ATA24.cpp
-    ATA25.cpp
-    ATA26.cpp
-    ATA27.cpp
-    ATA28.cpp
-    ATA29.cpp
-    ATA30.cpp
-    ATA31.cpp
-    ATA32.cpp
-    ATA33.cpp
-    ATA34.cpp
-    ATA35.cpp
-    ATA36.cpp
-    ATA38.cpp
-    ATA42.cpp
-    ATA44.cpp
-    ATA46.cpp
-    ATAtof.cpp
+    question_bank/ATA06.cpp
+    question_bank/ATA21.cpp
+    question_bank/ATA22.cpp
+    question_bank/ATA23.cpp
+    question_bank/ATA24.cpp
+    question_bank/ATA25.cpp
+    question_bank/ATA26.cpp
+    question_bank/ATA27.cpp
+    question_bank/ATA28.cpp
+    question_bank/ATA29.cpp
+    question_bank/ATA30.cpp
+    question_bank/ATA31.cpp
+    question_bank/ATA32.cpp
+    question_bank/ATA33.cpp
+    question_bank/ATA34.cpp
+    question_bank/ATA35.cpp
+    question_bank/ATA36.cpp
+    question_bank/ATA38.cpp
+    question_bank/ATA42.cpp
+    question_bank/ATA44.cpp
+    question_bank/ATA46.cpp
+    question_bank/ATAtof.cpp
 )
 
-# Omdøbt fra b2_quiz til Easa-B2-Quiz
 target_link_libraries(Easa-B2-Quiz PRIVATE
     Qt6::Core
     Qt6::Gui
