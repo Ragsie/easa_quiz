@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 qt_standard_project_setup()
 
+# Bemærk MANUAL_FINALIZATION eller sæt WIN32 egenskab
 qt_add_executable(Easa-B2-Quiz
     main.cpp
     question.h
@@ -34,6 +35,9 @@ qt_add_executable(Easa-B2-Quiz
     question_bank/ATA46.cpp
     question_bank/ATAtof.cpp
 )
+
+# Fjerner den sorte kommandoprompt på Windows:
+set_target_properties(Easa-B2-Quiz PROPERTIES WIN32_EXECUTABLE TRUE)
 
 target_include_directories(Easa-B2-Quiz PRIVATE .)
 
