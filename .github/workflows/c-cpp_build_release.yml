@@ -46,19 +46,23 @@ jobs:
           Copy-Item build\Easa-B2-Quiz.exe dist\Easa-B2-Quiz.exe
           windeployqt --release --no-translations --no-system-d3d-compiler dist\Easa-B2-Quiz.exe
 
-      # 4. Pak alt sammen til én enkelt Easa-B2-Quiz.exe (SFX Standalone)
+# 4. Pak til 100% Lydløs Standalone EXE med Auto-Cleanup
       - name: Package Single-File Standalone EXE
         run: |
+          # 1. Pak dist-mappen
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.7z .\dist\*
 
+          # 2. Konfiguration: GUIMode="2" gør udpakningen helt usynlig
           $config = @"
           ;!@Install@!UTF-8!
           Title="EASA Part-66 B2 Exam Quiz"
+          GUIMode="2"
           RunProgram="Easa-B2-Quiz.exe"
           ;!@InstallEnd@!
           "@
           [System.IO.File]::WriteAllText("config.txt", $config, [System.Text.Encoding]::UTF8)
 
+          # 3. Byg den færdige .exe
           cmd /c "copy /b `"C:\Program Files\7-Zip\7z.sfx`" + config.txt + app.7z Easa-B2-Quiz.exe"
 
 
