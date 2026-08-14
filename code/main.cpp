@@ -8,24 +8,39 @@
 #include <QProgressBar>
 #include <QFrame>
 #include <QStackedWidget>
+#include <QComboBox>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <random>
 
-struct Question {
-    QString question;
-    QStringList choices;
-    QString answer;
-    QString fact;
-    QString hint;
-};
+#include "question.h"
 
-// ERKLÆRING AF DE TRE DEL-FILER
-std::vector<Question> getPart1Questions();
-std::vector<Question> getPart2Questions();
-std::vector<Question> getPart3Questions();
-std::vector<Question> getPart4Questions();
+// =================================================================
+// ERKLÆRINGER AF ALLE DINE ATA-FILER (Fra dit projektbillede)
+// =================================================================
+std::vector<Question> getATA06Questions();
+std::vector<Question> getATA21Questions();
+std::vector<Question> getATA22Questions();
+std::vector<Question> getATA23Questions();
+std::vector<Question> getATA24Questions();
+std::vector<Question> getATA25Questions();
+std::vector<Question> getATA26Questions();
+std::vector<Question> getATA27Questions();
+std::vector<Question> getATA28Questions();
+std::vector<Question> getATA29Questions();
+std::vector<Question> getATA30Questions();
+std::vector<Question> getATA31Questions();
+std::vector<Question> getATA32Questions();
+std::vector<Question> getATA33Questions();
+std::vector<Question> getATA34Questions();
+std::vector<Question> getATA35Questions();
+std::vector<Question> getATA36Questions();
+std::vector<Question> getATA38Questions();
+std::vector<Question> getATA42Questions();
+std::vector<Question> getATA44Questions();
+std::vector<Question> getATA46Questions();
+std::vector<Question> getATAtofQuestions(); // Theory of Flight
 
 class EASAQuizWindow : public QWidget {
 private:
@@ -44,7 +59,10 @@ private:
     QWidget *quizPage;
     QWidget *resultPage;
 
-    // Start Page Elements
+    // Start Page Filter Elements
+    QComboBox *moduleCombo;
+    QComboBox *ataCombo;
+    QLabel *availableCountLabel;
     int selectedQuestionCount = 15;
     QLabel *questionCountLabel;
 
@@ -69,9 +87,9 @@ private:
 public:
     EASAQuizWindow(QWidget *parent = nullptr) : QWidget(parent) {
         setWindowTitle("EASA Part-66 B2 Exam Preparation");
-        setFixedSize(940, 680);
+        setFixedSize(960, 720);
 
-        // Moderne 2026 Dark Theme (QSS Styling)
+        // Dark-Mode Tema
         setStyleSheet(R"(
             QWidget {
                 background-color: #0f172a;
@@ -86,6 +104,24 @@ public:
             QFrame#HeaderCard {
                 background-color: #1e293b;
                 border-radius: 15px;
+            }
+            QComboBox {
+                background-color: #111827;
+                border: 2px solid #334155;
+                border-radius: 10px;
+                padding: 8px 12px;
+                color: #f8fafc;
+                font-size: 11pt;
+            }
+            QComboBox:hover {
+                border: 2px solid #38bdf8;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #1e293b;
+                color: #f8fafc;
+                selection-background-color: #0284c7;
+                selection-color: white;
+                border: 1px solid #334155;
             }
             QPushButton {
                 background-color: #0ea5e9;
@@ -109,6 +145,13 @@ public:
             }
             QPushButton#SecondaryBtn:hover {
                 background-color: #475569;
+            }
+            QPushButton#RandomBtn {
+                background-color: #8b5cf6;
+                color: white;
+            }
+            QPushButton#RandomBtn:hover {
+                background-color: #7c3aed;
             }
             QPushButton#ChoiceBtn {
                 background-color: #111827;
@@ -142,12 +185,6 @@ public:
 
         loadQuestions();
 
-        if (all_questions.empty()) {
-            selectedQuestionCount = 1;
-        } else {
-            selectedQuestionCount = std::min(15, (int)all_questions.size());
-        }
-
         windowLayout = new QVBoxLayout(this);
         windowLayout->setContentsMargins(0, 0, 0, 0);
         stackedWidget = new QStackedWidget(this);
@@ -162,21 +199,72 @@ public:
         stackedWidget->addWidget(resultPage);
 
         stackedWidget->setCurrentWidget(startPage);
+        updateFilterCount();
     }
 
-    // Henter og samler alle spørgsmål fra de tre separate C++ filer
+    // Indlæser og tildeler ATA og Modul 13 til alle filer
     void loadQuestions() {
         all_questions.clear();
 
-        auto p1 = getPart1Questions();
-        auto p2 = getPart2Questions();
-        auto p3 = getPart3Questions();
-        auto p4 = getPart4Questions();
+        auto addATA = [this](std::vector<Question> list, int ataNum, int modNum) {
+            for (auto &q : list) {
+                q.ata = ataNum;
+                q.module = modNum;
+                all_questions.push_back(q);
+            }
+        };
 
-        all_questions.insert(all_questions.end(), p1.begin(), p1.end());
-        all_questions.insert(all_questions.end(), p2.begin(), p2.end());
-        all_questions.insert(all_questions.end(), p3.begin(), p3.end());
-        all_questions.insert(all_questions.end(), p4.begin(), p4.end());
+        addATA(getATA06Questions(), 6, 13);
+        addATA(getATA21Questions(), 21, 13);
+        addATA(getATA22Questions(), 22, 13);
+        addATA(getATA23Questions(), 23, 13);
+        addATA(getATA24Questions(), 24, 13);
+        addATA(getATA25Questions(), 25, 13);
+        addATA(getATA26Questions(), 26, 13);
+        addATA(getATA27Questions(), 27, 13);
+        addATA(getATA28Questions(), 28, 13);
+        addATA(getATA29Questions(), 29, 13);
+        addATA(getATA30Questions(), 30, 13);
+        addATA(getATA31Questions(), 31, 13);
+        addATA(getATA32Questions(), 32, 13);
+        addATA(getATA33Questions(), 33, 13);
+        addATA(getATA34Questions(), 34, 13);
+        addATA(getATA35Questions(), 35, 13);
+        addATA(getATA36Questions(), 36, 13);
+        addATA(getATA38Questions(), 38, 13);
+        addATA(getATA42Questions(), 42, 13);
+        addATA(getATA44Questions(), 44, 13);
+        addATA(getATA46Questions(), 46, 13);
+        addATA(getATAtofQuestions(), 99, 13); // 99 bruges som ID for Theory of Flight
+    }
+
+    std::vector<Question> getFilteredQuestions() {
+        int selectedModule = moduleCombo->currentData().toInt();
+        int selectedATA = ataCombo->currentData().toInt();
+
+        std::vector<Question> filtered;
+        for (const auto &q : all_questions) {
+            bool moduleMatch = (selectedModule == 0 || q.module == selectedModule);
+            bool ataMatch = (selectedATA == 0 || q.ata == selectedATA);
+            if (moduleMatch && ataMatch) {
+                filtered.push_back(q);
+            }
+        }
+        return filtered;
+    }
+
+    void updateFilterCount() {
+        auto filtered = getFilteredQuestions();
+        int available = filtered.size();
+
+        availableCountLabel->setText(QString("(%1 questions available)").arg(available));
+
+        if (available == 0) {
+            selectedQuestionCount = 0;
+        } else {
+            selectedQuestionCount = std::min(selectedQuestionCount > 0 ? selectedQuestionCount : 15, available);
+        }
+        questionCountLabel->setText(QString::number(selectedQuestionCount));
     }
 
     void buildStartPage() {
@@ -186,44 +274,87 @@ public:
 
         QFrame *box = new QFrame();
         box->setObjectName("Card");
-        box->setFixedSize(550, 350);
+        box->setFixedSize(680, 530);
         QVBoxLayout *boxLayout = new QVBoxLayout(box);
-        boxLayout->setAlignment(Qt::AlignCenter);
-        boxLayout->setSpacing(25);
+        boxLayout->setContentsMargins(40, 30, 40, 30);
+        boxLayout->setSpacing(16);
 
         QLabel *title = new QLabel("EASA B2 Exam Setup");
-        title->setStyleSheet("font-size: 22pt; font-weight: bold; color: #38bdf8; background: transparent;");
+        title->setStyleSheet("font-size: 20pt; font-weight: bold; color: #38bdf8; background: transparent;");
         title->setAlignment(Qt::AlignCenter);
 
-        QLabel *subTitle = new QLabel("How many questions do you want to answer?");
-        subTitle->setStyleSheet("font-size: 13pt; color: #cbd5e1; background: transparent;");
-        subTitle->setAlignment(Qt::AlignCenter);
+        // 1. Modul Vælger
+        QLabel *modLabel = new QLabel("Select EASA Module:");
+        modLabel->setStyleSheet("font-size: 11pt; color: #cbd5e1; background: transparent; font-weight: bold;");
+        moduleCombo = new QComboBox();
+        moduleCombo->addItem("All Modules", 0);
+        moduleCombo->addItem("Module 13 - Aircraft Systems & Avionics", 13);
+
+        // 2. ATA Vælger (Fuldstændig liste af alle dine filer)
+        QLabel *ataLabel = new QLabel("Select ATA Chapter:");
+        ataLabel->setStyleSheet("font-size: 11pt; color: #cbd5e1; background: transparent; font-weight: bold;");
+        ataCombo = new QComboBox();
+        ataCombo->addItem("All ATA Chapters", 0);
+        ataCombo->addItem("ATA 06 - Dimensions & Areas", 6);
+        ataCombo->addItem("ATA 21 - Air Conditioning & Pressurisation", 21);
+        ataCombo->addItem("ATA 22 - Auto Flight", 22);
+        ataCombo->addItem("ATA 23 - Communications", 23);
+        ataCombo->addItem("ATA 24 - Electrical Power", 24);
+        ataCombo->addItem("ATA 25 - Equipment / Furnishings", 25);
+        ataCombo->addItem("ATA 26 - Fire Protection", 26);
+        ataCombo->addItem("ATA 27 - Flight Controls", 27);
+        ataCombo->addItem("ATA 28 - Fuel Systems", 28);
+        ataCombo->addItem("ATA 29 - Hydraulic Power", 29);
+        ataCombo->addItem("ATA 30 - Ice & Rain Protection", 30);
+        ataCombo->addItem("ATA 31 - Indicating & Recording", 31);
+        ataCombo->addItem("ATA 32 - Landing Gear & Brakes", 32);
+        ataCombo->addItem("ATA 33 - Lights", 33);
+        ataCombo->addItem("ATA 34 - Navigation", 34);
+        ataCombo->addItem("ATA 35 - Oxygen", 35);
+        ataCombo->addItem("ATA 36 - Pneumatics", 36);
+        ataCombo->addItem("ATA 38 - Water / Waste", 38);
+        ataCombo->addItem("ATA 42 - Integrated Modular Avionics", 42);
+        ataCombo->addItem("ATA 44 - Cabin Systems", 44);
+        ataCombo->addItem("ATA 46 - Information Systems", 46);
+        ataCombo->addItem("Theory of Flight (Aerodynamics)", 99);
+
+        // 3. Spørgsmålstæller
+        QHBoxLayout *countHeaderLayout = new QHBoxLayout();
+        QLabel *countTitle = new QLabel("Number of Questions:");
+        countTitle->setStyleSheet("font-size: 11pt; color: #cbd5e1; background: transparent; font-weight: bold;");
+        availableCountLabel = new QLabel("");
+        availableCountLabel->setStyleSheet("font-size: 10pt; color: #94a3b8; background: transparent;");
+        countHeaderLayout->addWidget(countTitle);
+        countHeaderLayout->addWidget(availableCountLabel);
+        countHeaderLayout->addStretch();
 
         QFrame *counterFrame = new QFrame();
         counterFrame->setStyleSheet("background-color: #111827; border: 2px solid #334155; border-radius: 12px;");
-        counterFrame->setFixedSize(220, 60);
+        counterFrame->setFixedSize(220, 48);
 
         QHBoxLayout *counterLayout = new QHBoxLayout(counterFrame);
-        counterLayout->setContentsMargins(5, 5, 5, 5);
-        counterLayout->setSpacing(0);
+        counterLayout->setContentsMargins(5, 4, 5, 4);
 
         QPushButton *minusBtn = new QPushButton("-");
-        minusBtn->setFixedSize(46, 46);
+        minusBtn->setFixedSize(38, 38);
         minusBtn->setCursor(Qt::PointingHandCursor);
-        minusBtn->setStyleSheet("background-color: #334155; color: white; font-size: 20pt; font-weight: bold; border-radius: 8px; padding: 0px;");
+        minusBtn->setStyleSheet("background-color: #334155; color: white; font-size: 18pt; font-weight: bold; border-radius: 8px; padding: 0px;");
 
         questionCountLabel = new QLabel(QString::number(selectedQuestionCount));
         questionCountLabel->setAlignment(Qt::AlignCenter);
-        questionCountLabel->setStyleSheet("font-size: 18pt; font-weight: bold; color: #38bdf8; background: transparent; border: none;");
+        questionCountLabel->setStyleSheet("font-size: 16pt; font-weight: bold; color: #38bdf8; background: transparent; border: none;");
 
         QPushButton *plusBtn = new QPushButton("+");
-        plusBtn->setFixedSize(46, 46);
+        plusBtn->setFixedSize(38, 38);
         plusBtn->setCursor(Qt::PointingHandCursor);
-        plusBtn->setStyleSheet("background-color: #334155; color: white; font-size: 20pt; font-weight: bold; border-radius: 8px; padding: 0px;");
+        plusBtn->setStyleSheet("background-color: #334155; color: white; font-size: 18pt; font-weight: bold; border-radius: 8px; padding: 0px;");
 
         counterLayout->addWidget(minusBtn);
         counterLayout->addWidget(questionCountLabel);
         counterLayout->addWidget(plusBtn);
+
+        connect(moduleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &EASAQuizWindow::updateFilterCount);
+        connect(ataCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &EASAQuizWindow::updateFilterCount);
 
         connect(minusBtn, &QPushButton::clicked, this, [this]() {
             if (selectedQuestionCount > 1) {
@@ -233,22 +364,39 @@ public:
         });
 
         connect(plusBtn, &QPushButton::clicked, this, [this]() {
-            int max_q = std::max(1, (int)all_questions.size());
+            int max_q = getFilteredQuestions().size();
             if (selectedQuestionCount < max_q) {
                 selectedQuestionCount++;
                 questionCountLabel->setText(QString::number(selectedQuestionCount));
             }
         });
 
+        // Knapper
+        QHBoxLayout *btnLayout = new QHBoxLayout();
+
         QPushButton *startBtn = new QPushButton("Start Quiz ➔");
         startBtn->setCursor(Qt::PointingHandCursor);
-        startBtn->setFixedSize(220, 50);
+        startBtn->setFixedHeight(46);
         connect(startBtn, &QPushButton::clicked, this, &EASAQuizWindow::startQuiz);
 
+        QPushButton *randomBtn = new QPushButton("🎲 Random All");
+        randomBtn->setObjectName("RandomBtn");
+        randomBtn->setCursor(Qt::PointingHandCursor);
+        randomBtn->setFixedHeight(46);
+        connect(randomBtn, &QPushButton::clicked, this, &EASAQuizWindow::startRandomQuiz);
+
+        btnLayout->addWidget(startBtn);
+        btnLayout->addWidget(randomBtn);
+
         boxLayout->addWidget(title);
-        boxLayout->addWidget(subTitle);
+        boxLayout->addWidget(modLabel);
+        boxLayout->addWidget(moduleCombo);
+        boxLayout->addWidget(ataLabel);
+        boxLayout->addWidget(ataCombo);
+        boxLayout->addLayout(countHeaderLayout);
         boxLayout->addWidget(counterFrame, 0, Qt::AlignHCenter);
-        boxLayout->addWidget(startBtn, 0, Qt::AlignHCenter);
+        boxLayout->addSpacing(8);
+        boxLayout->addLayout(btnLayout);
 
         layout->addWidget(box);
     }
@@ -387,6 +535,7 @@ public:
         restartBtn->setCursor(Qt::PointingHandCursor);
         connect(restartBtn, &QPushButton::clicked, [this]() {
             loadQuestions();
+            updateFilterCount();
             stackedWidget->setCurrentWidget(startPage);
         });
 
@@ -404,17 +553,34 @@ public:
     }
 
     void startQuiz() {
-        if (all_questions.empty()) {
-            return;
-        }
-
-        int num_q = std::min(selectedQuestionCount, (int)all_questions.size());
+        auto pool = getFilteredQuestions();
+        if (pool.empty() || selectedQuestionCount <= 0) return;
 
         std::random_device rd;
         std::mt19937 g(rd());
-        std::shuffle(all_questions.begin(), all_questions.end(), g);
+        std::shuffle(pool.begin(), pool.end(), g);
 
-        quiz_questions.assign(all_questions.begin(), all_questions.begin() + num_q);
+        int count = std::min(selectedQuestionCount, (int)pool.size());
+        quiz_questions.assign(pool.begin(), pool.begin() + count);
+
+        current_index = 0;
+        score = 0;
+        progressBar->setRange(0, quiz_questions.size());
+
+        stackedWidget->setCurrentWidget(quizPage);
+        showQuestion();
+    }
+
+    void startRandomQuiz() {
+        if (all_questions.empty()) return;
+
+        auto pool = all_questions;
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(pool.begin(), pool.end(), g);
+
+        int count = std::min(15, (int)pool.size());
+        quiz_questions.assign(pool.begin(), pool.begin() + count);
 
         current_index = 0;
         score = 0;
