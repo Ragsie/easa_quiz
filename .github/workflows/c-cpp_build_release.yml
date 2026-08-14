@@ -2,7 +2,7 @@ name: Build & Publish Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,18 +18,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Ninja & Tools
-        run: |
-          choco install ninja --no-progress
+      # 1. Cache Chocolatey / Tools (Ninja & Enigma Virtual Box)
+      - name: Cache Tools (Chocolatey)
+        uses: actions/cache@v4
+        id: cache-tools
+        with:
+          path: |
+            C:\ProgramData\chocolatey\bin
+            C:\ProgramData\chocolatey\lib
+            C:\Program Files (x86)\Enigma Virtual Box
+          key: ${{ runner.os }}-tools-v1
 
-      - name: Install Qt & MinGW
+      - name: Install Tools if not cached
+        if: steps.cache-tools.outputs.cache-hit != 'true'
+        run: |
+          choco install ninja enigma-virtual-box --no-progress
+
+      # 2. Cache Qt-installationen
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/Qt
+          key: ${{ runner.os }}-Qt-6.6.2-mingw64
+
+      - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: '6.6.2'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_mingw'
+          dir: ${{ runner.temp }}
+          cached: ${{ steps.cache-qt.outputs.cache-hit }}
 
+      # 3. Configure & Build Project
       - name: Configure CMake
         run: |
           cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
@@ -38,31 +61,32 @@ jobs:
         run: |
           cmake --build build --config Release
 
+      # 4. Saml afhængigheder med windeployqt
       - name: Collect Dependencies (windeployqt)
         run: |
           mkdir dist
           copy build\b2_quiz.exe dist\
           windeployqt --release --no-translations --no-system-d3d-compiler dist\b2_quiz.exe
 
+      # 5. Pak til Single-File EXE
       - name: Package Single-File EXE (Enigma Virtual Box)
         run: |
-          choco install enigma-virtual-box --no-progress
           & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbgen.exe" dist\b2_quiz.exe dist\b2_quiz_standalone.exe dist\
           & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" generated_project.evb
 
-      # Gemmer filen som et Artifact (så den kan downloades ved enhver almindelig push)
+      # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: EASA_B2_Quiz_Executable
           path: dist/b2_quiz_standalone.exe
 
-      # Opretter officiel GitHub Release (hvis der er pushet et versions-tag som v1.0)
+      # 7. Opret GitHub Release (hvis der er et git tag)
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/b2_quiz_standalone.exe
+          files: dist/Easa_B2_Quiz.exe
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
