@@ -52,7 +52,7 @@ jobs:
           
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
 
-          
+         
           $launcherCode = @"
           using System;
           using System.IO;
@@ -101,7 +101,7 @@ jobs:
 
           
           $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /target:winexe /optimize+ /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
+          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
 
       - name: Self-Sign Executable
         run: |
