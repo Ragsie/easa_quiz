@@ -46,28 +46,62 @@ jobs:
           Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
           windeployqt --release --no-translations --no-system-d3d-compiler dist\quiz_app.exe
 
-# 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup
+# 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup (Native Windows .NET)
       - name: Package Single-File Standalone EXE
         run: |
           
-          choco install 7zip.extra -y --no-progress
+          & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
 
           
-          & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.7z .\dist\*
+          $launcherCode = @"
+          using System;
+          using System.IO;
+          using System.IO.Compression;
+          using System.Diagnostics;
+          using System.Reflection;
 
-         
-          
-          $config = @"
-          ;!@Install@!UTF-8!
-          GUIMode="2"
-          RunProgram="quiz_app.exe"
-          ;!@InstallEnd@!
+          class Program {
+              [STAThread]
+              static void Main() {
+                  string tempFolder = Path.Combine(Path.GetTempPath(), "EasaB2Quiz_" + Guid.NewGuid().ToString("N"));
+                  try {
+                      Directory.CreateDirectory(tempFolder);
+                      
+                      
+                      using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
+                      using (ZipArchive archive = new ZipArchive(stream)) {
+                          archive.ExtractToDirectory(tempFolder);
+                      }
+
+                      
+                      string exePath = Path.Combine(tempFolder, "quiz_app.exe");
+                      ProcessStartInfo psi = new ProcessStartInfo(exePath) {
+                          WorkingDirectory = tempFolder,
+                          UseShellExecute = false
+                      };
+
+                      using (Process proc = Process.Start(psi)) {
+                          proc.WaitForExit();
+                      }
+                  }
+                  catch (Exception) { }
+                  finally {
+                      
+                      try {
+                          if (Directory.Exists(tempFolder)) {
+                              Directory.Delete(tempFolder, true);
+                          }
+                      }
+                      catch (Exception) { }
+                  }
+              }
+          }
           "@
-          [System.IO.File]::WriteAllText("config.txt", $config, [System.Text.Encoding]::UTF8)
+          [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
 
           
-          $sfxPath = (Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\7zip.extra" -Filter "7zsd.sfx" -Recurse | Select-Object -First 1).FullName
-          cmd /c "copy /b `"$sfxPath`" + config.txt + app.7z Easa-B2-Quiz.exe"
+          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /target:winexe /optimize+ /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
 
       - name: Self-Sign Executable
         run: |
