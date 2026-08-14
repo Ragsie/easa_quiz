@@ -39,26 +39,32 @@ jobs:
         run: |
           cmake --build build --config Release
 
-# 3. Saml Qt DLL'er med windeployqt
-      - name: Collect Dependencies (windeployqt)
+# 3. Saml Qt DLL'er OG MinGW Compiler DLL'er
+      - name: Collect Dependencies (windeployqt & MinGW DLLs)
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
+          
+          
           windeployqt --release --no-translations --no-system-d3d-compiler dist\quiz_app.exe
+          
+          
+          Copy-Item "C:\mingw64\bin\*.dll" dist\ -Force
 
-# 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup (Native Windows .NET)
+      # 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup
       - name: Package Single-File Standalone EXE
         run: |
           
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
 
-         
+          
           $launcherCode = @"
           using System;
           using System.IO;
           using System.IO.Compression;
           using System.Diagnostics;
           using System.Reflection;
+          using System.Windows.Forms;
 
           class Program {
               [STAThread]
@@ -67,13 +73,11 @@ jobs:
                   try {
                       Directory.CreateDirectory(tempFolder);
                       
-                      
                       using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
                       using (ZipArchive archive = new ZipArchive(stream)) {
                           archive.ExtractToDirectory(tempFolder);
                       }
 
-                      
                       string exePath = Path.Combine(tempFolder, "quiz_app.exe");
                       ProcessStartInfo psi = new ProcessStartInfo(exePath) {
                           WorkingDirectory = tempFolder,
@@ -84,9 +88,10 @@ jobs:
                           proc.WaitForExit();
                       }
                   }
-                  catch (Exception) { }
+                  catch (Exception ex) {
+                      MessageBox.Show(ex.Message, "Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                  }
                   finally {
-                      
                       try {
                           if (Directory.Exists(tempFolder)) {
                               Directory.Delete(tempFolder, true);
@@ -101,7 +106,7 @@ jobs:
 
           
           $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
+          & $csc /target:winexe /optimize+ /r:System.Windows.Forms.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
 
       - name: Self-Sign Executable
         run: |
