@@ -46,17 +46,17 @@ jobs:
           Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
           windeployqt --release --no-translations --no-system-d3d-compiler dist\quiz_app.exe
 
-      # 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup
+     # 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup
       - name: Package Single-File Standalone EXE
         run: |
           
-          Invoke-WebRequest -Uri "https://github.com/mcmilk/7-Zip-zstd/releases/download/v22.01-v1.5.5-R1/7z-Extra.zip" -OutFile "7z-extra.zip" -UseBasicParsing
-          & "C:\Program Files\7-Zip\7z.exe" x "7z-extra.zip" -o"sfx_modules" "x64/7zSD.sfx" -r
+          Invoke-WebRequest -Uri "https://www.7-zip.org/a/7z2408-extra.7z" -OutFile "7z-extra.7z" -UserAgent "NativeHost"
+          & "C:\Program Files\7-Zip\7z.exe" x "7z-extra.7z" -o"sfx_modules" "x64/7zSD.sfx" -r
 
           
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.7z .\dist\*
 
-          
+         
           $config = @"
           ;!@Install@!UTF-8!
           GUIMode="2"
@@ -65,10 +65,8 @@ jobs:
           "@
           [System.IO.File]::WriteAllText("config.txt", $config, [System.Text.Encoding]::UTF8)
 
-          
-          $sfxPath = Resolve-Path "sfx_modules\x64\7zSD.sfx"
+          $sfxPath = (Get-ChildItem -Path "sfx_modules" -Filter "7zSD.sfx" -Recurse | Select-Object -First 1).FullName
           cmd /c "copy /b `"$sfxPath`" + config.txt + app.7z Easa-B2-Quiz.exe"
-
 
       - name: Self-Sign Executable
         run: |
