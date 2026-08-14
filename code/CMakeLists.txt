@@ -1,15 +1,17 @@
-cmake_minimum_required(VERSION 3.19)
-project(b2_quiz LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.16)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+project(Easa-B2-Quiz LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 qt_standard_project_setup()
 
-qt_add_executable(b2_quiz
-    WIN32 MACOSX_BUNDLE
+# Omdøbt fra b2_quiz til Easa-B2-Quiz
+qt_add_executable(Easa-B2-Quiz
     main.cpp
     question.h
-    ATAtof.cpp
     ATA06.cpp
     ATA21.cpp
     ATA22.cpp
@@ -31,25 +33,12 @@ qt_add_executable(b2_quiz
     ATA42.cpp
     ATA44.cpp
     ATA46.cpp
-
-
+    ATAtof.cpp
 )
 
-target_link_libraries(b2_quiz
-    PRIVATE
-        Qt::Core
-        Qt::Widgets
+# Omdøbt fra b2_quiz til Easa-B2-Quiz
+target_link_libraries(Easa-B2-Quiz PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
 )
-
-install(TARGETS b2_quiz
-    BUNDLE  DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-qt_generate_deploy_app_script(
-    TARGET b2_quiz
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
