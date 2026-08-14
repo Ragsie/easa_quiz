@@ -2,7 +2,7 @@ name: Build & Publish Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -49,10 +49,8 @@ jobs:
       # 4. Pak alt sammen til én enkelt Easa-B2-Quiz.exe (SFX Standalone)
       - name: Package Single-File Standalone EXE
         run: |
-          # 1. Pak dist-mappen ned i et 7z-arkiv
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.7z .\dist\*
 
-          # 2. Lav konfiguration der starter spillet direkte ved dobbeltklik
           $config = @"
           ;!@Install@!UTF-8!
           Title="EASA Part-66 B2 Exam Quiz"
@@ -61,10 +59,16 @@ jobs:
           "@
           [System.IO.File]::WriteAllText("config.txt", $config, [System.Text.Encoding]::UTF8)
 
-          # 3. Smelt 7z SFX-modulet sammen med konfigurationen og arkivet til Easa-B2-Quiz.exe
           cmd /c "copy /b `"C:\Program Files\7-Zip\7z.sfx`" + config.txt + app.7z Easa-B2-Quiz.exe"
 
-      # 5. Upload Artifact (kan hentes direkte fra GitHub efter build)
+
+      - name: Self-Sign Executable
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=EASA B2 Quiz" -CertStoreLocation "Cert:\CurrentUser\My"
+          $certPath = "Cert:\CurrentUser\My\" + $cert.Thumbprint
+          Set-AuthenticodeSignature -FilePath ".\Easa-B2-Quiz.exe" -Certificate (Get-Item $certPath) -TimestampServer "http://timestamp.digicert.com"
+
+      # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -72,7 +76,7 @@ jobs:
           path: Easa-B2-Quiz.exe
           if-no-files-found: error
 
-    # 6. Opret / Opdater en 'latest' Release automatisk ved HVERT push
+      # 7. Opret GitHub Release
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
