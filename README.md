@@ -18,6 +18,7 @@ Questions has been made with help of AI with lufthansa materials
 supported modules
 Module 13
 
+Program is compressed to make it fit on github
 ## How to run
 1. download release
 2. unfold the (easa b2 quiz.exe.7z) inside
