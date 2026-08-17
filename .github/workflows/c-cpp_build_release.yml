@@ -39,93 +39,31 @@ jobs:
         run: |
           cmake --build build --config Release
 
-      # 3. Klargør dist-mappe, hent DLL-afhængigheder og signer selve quiz-programmet
-      - name: Collect Dependencies & Sign Core Binary
+      # 3. Klargør dist-mappen med alle nødvendige Qt & MinGW DLL'er
+      - name: Collect Dependencies
         run: |
-          New-Item -ItemType Directory -Force -Path dist
-          Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
-          
-          # Hent Qt DLL'er samt MinGW compiler runtime DLL'er
-          windeployqt --release --no-translations --compiler-runtime dist\quiz_app.exe
-          
-          # Opret Code Signing certifikat og signer quiz_app.exe
-          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=EASA B2 Quiz" -CertStoreLocation "Cert:\CurrentUser\My"
-          $certPath = "Cert:\CurrentUser\My\" + $cert.Thumbprint
-          Set-AuthenticodeSignature -FilePath "dist\quiz_app.exe" -Certificate (Get-Item $certPath) -TimestampServer "http://timestamp.digicert.com"
+          New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
+          Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
+          windeployqt --release --no-translations --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
 
-      # 4. Pak alle filer og byg en C# Standalone Launcher med Shell Execution og Auto-Cleanup
-      - name: Package Single-File Standalone EXE
+      # 4. Pak hele mappen til en ren ZIP-fil
+      - name: Create Portable Zip
         run: |
-          # Pak mappen ned i en intern ZIP
-          & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
+          Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
 
-          # Opret en Launcher, der bruger Windows Shell og rydder Temp op ved lukning
-          $launcherCode = @"
-          using System;
-          using System.IO;
-          using System.IO.Compression;
-          using System.Diagnostics;
-          using System.Reflection;
-
-          class Program {
-              [STAThread]
-              static void Main() {
-                  string tempFolder = Path.Combine(Path.GetTempPath(), "EasaB2Quiz_" + Guid.NewGuid().ToString("N"));
-                  try {
-                      Directory.CreateDirectory(tempFolder);
-                      
-                      using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
-                      using (ZipArchive archive = new ZipArchive(stream)) {
-                          archive.ExtractToDirectory(tempFolder);
-                      }
-
-                      string exePath = Path.Combine(tempFolder, "quiz_app.exe");
-                      ProcessStartInfo psi = new ProcessStartInfo(exePath) {
-                          WorkingDirectory = tempFolder,
-                          UseShellExecute = true
-                      };
-
-                      using (Process proc = Process.Start(psi)) {
-                          if (proc != null) {
-                              proc.WaitForExit();
-                          }
-                      }
-                  }
-                  catch (Exception) { }
-                  finally {
-                      try {
-                          if (Directory.Exists(tempFolder)) {
-                              Directory.Delete(tempFolder, true);
-                          }
-                      }
-                      catch (Exception) { }
-                  }
-              }
-          }
-          "@
-          [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
-
-          # Kompiler Launcher til Easa-B2-Quiz.exe uden konsolvindue
-          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
-
-          # Signer den færdige Easa-B2-Quiz.exe med samme certifikat
-          $cert = (Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1)
-          Set-AuthenticodeSignature -FilePath ".\Easa-B2-Quiz.exe" -Certificate $cert -TimestampServer "http://timestamp.digicert.com"
-
-      # 5. Upload Artifact (kan hentes direkte fra GitHub Actions loggen)
+      # 5. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Easa-B2-Quiz-Windows
-          path: Easa-B2-Quiz.exe
+          path: Easa-B2-Quiz-Windows.zip
           if-no-files-found: error
 
-      # 6. Opret GitHub Release med unikt build-tag og marker som latest
+      # 6. Opret GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Easa-B2-Quiz.exe
+          files: Easa-B2-Quiz-Windows.zip
           tag_name: build-${{ github.run_number }}
           name: "EASA B2 Quiz - Build ${{ github.run_number }}"
           make_latest: true
