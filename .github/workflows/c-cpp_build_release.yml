@@ -31,7 +31,7 @@ jobs:
           cache: 'true'
           cache-key-prefix: '${{ runner.os }}-Qt-6.8.2-mingw1310'
 
-      # 2. Opsæt PATH og find MinGW 13.1.0 compiler
+      # 2. Opsæt PATH og find MinGW compiler
       - name: Setup Compiler and Paths
         id: setup-tools
         run: |
@@ -57,94 +57,88 @@ jobs:
             -DCMAKE_CXX_COMPILER="${{ env.CXX_COMPILER }}"
           cmake --build build --config Release
 
-      # 4. Saml alle de nødvendige filer i dist-mappen
+      # 4. Saml alle Qt & MinGW DLL'er i dist-mappen
       - name: Collect Dependencies
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
+          Copy-Item build\Easa-B2-Quiz.exe dist\core_app.exe
 
           $qtBin = "${{ env.Qt6_DIR }}\bin"
           $mingwBin = "${{ env.MINGW_BIN }}"
 
-          # Kør windeployqt med fuld plugin-deployment
-          & "$qtBin\windeployqt.exe" --release --compiler-runtime dist\quiz_app.exe
+          # Kør windeployqt
+          & "$qtBin\windeployqt.exe" --release --compiler-runtime dist\core_app.exe
 
-          # Kopier MinGW DLL'er og OpenGL software rasterizer
+          # Kopier runtime DLL'er og OpenGL software rasterizer
           Copy-Item "$mingwBin\libstdc++-6.dll" dist\ -Force -ErrorAction SilentlyContinue
           Copy-Item "$mingwBin\libgcc_s_seh-1.dll" dist\ -Force -ErrorAction SilentlyContinue
           Copy-Item "$mingwBin\libwinpthread-1.dll" dist\ -Force -ErrorAction SilentlyContinue
           Copy-Item "$qtBin\opengl32sw.dll" dist\ -Force -ErrorAction SilentlyContinue
 
-      # 5. Pak alt sammen til en Standalone Single-File Easa-B2-Quiz.exe
-      - name: Package Single-File Standalone EXE
+      # 5. Pak alt ind i en Single-File EXE med Enigma Virtual Box (In-Memory Virtualization)
+      - name: Pack Single-File Executable with Enigma Virtual Box
         run: |
-          # 1. Pak hele dist-mappen ned i et indlejret zip-arkiv
-          & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
+          # 1. Installer Enigma Virtual Box
+          choco install enigma-virtual-box -y --no-progress
 
-          # 2. Skriv C# launcher (udpakker til AppData, starter quiz_app.exe og rydder op)
-          $launcherCode = @"
-          using System;
-          using System.IO;
-          using System.IO.Compression;
-          using System.Diagnostics;
-          using System.Reflection;
+          $distPath = (Resolve-Path "dist").Path
+          $coreExe = "$distPath\core_app.exe"
+          $outputExe = (Join-Path (Get-Location).Path "Easa-B2-Quiz.exe")
 
-          class Program {
-              [STAThread]
-              static void Main() {
-                  string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                  string targetFolder = Path.Combine(appData, "EasaB2Quiz_App");
-
-                  try {
-                      if (Directory.Exists(targetFolder)) {
-                          try { Directory.Delete(targetFolder, true); } catch { }
-                      }
-                      Directory.CreateDirectory(targetFolder);
-
-                      using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
-                      using (ZipArchive archive = new ZipArchive(stream)) {
-                          archive.ExtractToDirectory(targetFolder);
-                      }
-
-                      string exePath = Path.Combine(targetFolder, "quiz_app.exe");
-                      ProcessStartInfo psi = new ProcessStartInfo(exePath) {
-                          WorkingDirectory = targetFolder,
-                          UseShellExecute = true
-                      };
-
-                      using (Process proc = Process.Start(psi)) {
-                          if (proc != null) {
-                              proc.WaitForExit();
-                          }
-                      }
-                  }
-                  catch (Exception) { }
-                  finally {
-                      try {
-                          if (Directory.Exists(targetFolder)) {
-                              Directory.Delete(targetFolder, true);
-                          }
-                      }
-                      catch (Exception) { }
-                  }
-              }
-          }
+          # 2. Generer Enigma Virtual Box projektfil (evb)
+          # Dette fortæller Enigma at indlejre hele dist-mappens indhold virtuelt under %DEFAULT FOLDER%
+          $evbXml = @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <EnigmaVirtualBox Version="1.0">
+            <InputFile>$coreExe</InputFile>
+            <OutputFile>$outputExe</OutputFile>
+            <Files>
+              <File Type="2">
+                <Path>%DEFAULT FOLDER%</Path>
+                <Files>
           "@
-          [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
 
-          # 3. Kompiler til Easa-B2-Quiz.exe uden sort konsolvindue
-          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
+          # Tilføj alle filer og mapper fra dist/ til den virtuelle pakke
+          Get-ChildItem -Path "dist" -Exclude "core_app.exe" | ForEach-Object {
+            if ($_.PSIsContainer) {
+              $dirName = $_.Name
+              $evbXml += "<File Type=`"2`"><Path>$dirName</Path><Files>"
+              Get-ChildItem -Path $_.FullName -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
+                $subRel = $_.FullName.Substring($_.FullName.IndexOf($dirName) + $dirName.Length + 1)
+                $evbXml += "<File Type=`"3`"><Name>$($_.Name)</Name><File>$($_.FullName)</File></File>"
+              }
+              $evbXml += "</Files></File>"
+            } else {
+              $evbXml += "<File Type=`"3`"><Name>$($_.Name)</Name><File>$($_.FullName)</File></File>"
+            }
+          }
+
+          $evbXml += @"
+                </Files>
+              </File>
+            </Files>
+            <Options>
+              <ShareVirtualSystem>false</ShareVirtualSystem>
+              <MapExecutableWithTemporaryFile>false</MapExecutableWithTemporaryFile>
+              <AllowRunningOfVirtualExeFiles>true</AllowRunningOfVirtualExeFiles>
+            </Options>
+          </EnigmaVirtualBox>
+          "@
+
+          [System.IO.File]::WriteAllText("package.evb", $evbXml, [System.Text.Encoding]::UTF8)
+
+          # 3. Kør Enigma Console Packer
+          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" package.evb
 
       # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Easa-B2-Quiz-Windows
+          name: Easa-B2-Quiz
           path: Easa-B2-Quiz.exe
           if-no-files-found: error
 
-      # 7. Opret GitHub Release
+      # 7. Opret GitHub Release med den færdige Easa-B2-Quiz.exe
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
