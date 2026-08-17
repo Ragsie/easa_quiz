@@ -18,18 +18,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Installer Qt 6.11.1 med MinGW 13.1.0 toolchain
+      # 1. Installer Qt 6.8.2 med MinGW 13.1.0 toolchain
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          version: '6.11.1'
+          version: '6.8.2'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_mingw'
           tools: 'tools_mingw1310'
           dir: ${{ runner.temp }}
           cache: 'true'
-          cache-key-prefix: '${{ runner.os }}-Qt-6.11.1-mingw1310'
+          cache-key-prefix: '${{ runner.os }}-Qt-6.8.2-mingw1310'
 
       # 2. Opsæt PATH og find den rigtige MinGW 13.1.0 compiler
       - name: Setup Compiler and Paths
@@ -45,11 +45,10 @@ jobs:
           echo "CXX_COMPILER=$gxx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "C_COMPILER=$gcc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-          # Tilføj Qt og MinGW 13.1.0 til PATH før systemets egen MinGW
           echo "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # 3. Konfigurer og byg projektet eksplicit med MinGW 13.1.0
+      # 3. Konfigurer og byg projektet med MinGW 13.1.0
       - name: Configure and Build
         run: |
           cmake -S code -B build -G "Ninja" `
@@ -58,16 +57,16 @@ jobs:
             -DCMAKE_CXX_COMPILER="${{ env.CXX_COMPILER }}"
           cmake --build build --config Release
 
-      # 4. Klargør mappen og saml alle Qt / MinGW 13 DLL'er
+      # 4. Klargør mappen og saml samtlige Qt 6.8 / MinGW 13 DLL'er
       - name: Collect Dependencies
         run: |
           New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
           Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
           
-          # Kør windeployqt
+          # Saml afhængigheder
           windeployqt --release --no-translations --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
 
-      # 5. Pak hele mappen til en ren ZIP-distribution
+      # 5. Pak mappen til en ZIP-distribution
       - name: Create Portable Zip
         run: |
           Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
