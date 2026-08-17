@@ -57,42 +57,98 @@ jobs:
             -DCMAKE_CXX_COMPILER="${{ env.CXX_COMPILER }}"
           cmake --build build --config Release
 
-      # 4. Klargør mappen og kør komplet deployment (løser ntdll.dll 0xc0000005 crash)
+      # 4. Saml alle de nødvendige filer i dist-mappen
       - name: Collect Dependencies
         run: |
-          New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
-          Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
 
           $qtBin = "${{ env.Qt6_DIR }}\bin"
           $mingwBin = "${{ env.MINGW_BIN }}"
 
-          # Kør windeployqt med fuld plugin- og runtime deployment
-          & "$qtBin\windeployqt.exe" --release --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
+          # Kør windeployqt med fuld plugin-deployment
+          & "$qtBin\windeployqt.exe" --release --compiler-runtime dist\quiz_app.exe
 
-          # Kopier kritiske runtime DLL'er hvis de mangler
-          Copy-Item "$mingwBin\libstdc++-6.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$mingwBin\libwinpthread-1.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$qtBin\opengl32sw.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
+          # Kopier MinGW DLL'er og OpenGL software rasterizer
+          Copy-Item "$mingwBin\libstdc++-6.dll" dist\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" dist\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$mingwBin\libwinpthread-1.dll" dist\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$qtBin\opengl32sw.dll" dist\ -Force -ErrorAction SilentlyContinue
 
-      # 5. Pak mappen til ZIP
-      - name: Create Portable Zip
+      # 5. Pak alt sammen til en Standalone Single-File Easa-B2-Quiz.exe
+      - name: Package Single-File Standalone EXE
         run: |
-          Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
+          # 1. Pak hele dist-mappen ned i et indlejret zip-arkiv
+          & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
+
+          # 2. Skriv C# launcher (udpakker til AppData, starter quiz_app.exe og rydder op)
+          $launcherCode = @"
+          using System;
+          using System.IO;
+          using System.IO.Compression;
+          using System.Diagnostics;
+          using System.Reflection;
+
+          class Program {
+              [STAThread]
+              static void Main() {
+                  string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                  string targetFolder = Path.Combine(appData, "EasaB2Quiz_App");
+
+                  try {
+                      if (Directory.Exists(targetFolder)) {
+                          try { Directory.Delete(targetFolder, true); } catch { }
+                      }
+                      Directory.CreateDirectory(targetFolder);
+
+                      using (Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("app.zip"))
+                      using (ZipArchive archive = new ZipArchive(stream)) {
+                          archive.ExtractToDirectory(targetFolder);
+                      }
+
+                      string exePath = Path.Combine(targetFolder, "quiz_app.exe");
+                      ProcessStartInfo psi = new ProcessStartInfo(exePath) {
+                          WorkingDirectory = targetFolder,
+                          UseShellExecute = true
+                      };
+
+                      using (Process proc = Process.Start(psi)) {
+                          if (proc != null) {
+                              proc.WaitForExit();
+                          }
+                      }
+                  }
+                  catch (Exception) { }
+                  finally {
+                      try {
+                          if (Directory.Exists(targetFolder)) {
+                              Directory.Delete(targetFolder, true);
+                          }
+                      }
+                      catch (Exception) { }
+                  }
+              }
+          }
+          "@
+          [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
+
+          # 3. Kompiler til Easa-B2-Quiz.exe uden sort konsolvindue
+          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
 
       # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Easa-B2-Quiz-Windows
-          path: Easa-B2-Quiz-Windows.zip
+          path: Easa-B2-Quiz.exe
           if-no-files-found: error
 
       # 7. Opret GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Easa-B2-Quiz-Windows.zip
+          files: Easa-B2-Quiz.exe
           tag_name: build-${{ github.run_number }}
           name: "EASA B2 Quiz - Build ${{ github.run_number }}"
           make_latest: true
