@@ -18,52 +18,51 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Installer Qt 6.6.2 inkl. medfølgende værktøjer
+      # 1. Installer den nøjagtige Qt version med MinGW 13.1.0
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          version: '6.6.2'
+          version: '6.8.0'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_mingw'
           dir: ${{ runner.temp }}
           cache: 'true'
-          cache-key-prefix: '${{ runner.os }}-Qt-6.6.2-mingw64'
+          cache-key-prefix: '${{ runner.os }}-Qt-6.8.0-mingw64'
 
-      # 2. Sæt PATH til Qt's egen MinGW compiler og værktøjer
-      - name: Setup Qt MinGW Environment
+      # 2. Opsæt PATH til Qt og MinGW værktøjer
+      - name: Setup Qt & MinGW Environment
         run: |
-          # Find den MinGW der hører til Qt installationen
           $qtBin = "${{ env.Qt6_DIR }}\bin"
-          $mingwBin = "${{ runner.temp }}\Qt\Tools\mingw1120_64\bin"
-          
-          if (Test-Path $mingwBin) {
-            echo "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $toolsPath = "${{ runner.temp }}\Qt\Tools"
+          $mingw = (Get-ChildItem -Path $toolsPath -Filter "g++.exe" -Recurse | Select-Object -First 1).DirectoryName
+          if ($mingw) {
+            echo "$mingw" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           }
           echo "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # 3. Konfigurer og byg med CMake
+      # 3. Konfigurer og byg projektet med Ninja
       - name: Configure and Build
         run: |
           cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
-      # 4. Klargør mappe og kopier DLL'er
-      - name: Collect Dependencies
+      # 4. Klargør mappen og saml alle Qt 6.8 / MinGW 13 DLL'er
+      - name: Collect Dependencies (windeployqt)
         run: |
           New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
           Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
           
-          # Kør windeployqt
+          # Saml alle Qt-afhængigheder
           windeployqt --release --no-translations --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
           
-          # Hent de nødvendige MinGW DLL'er direkte fra Qt's bin
+          # Hent de matchende MinGW 13 runtime DLL'er
           $qtBin = "${{ env.Qt6_DIR }}\bin"
           Copy-Item "$qtBin\libstdc++-6.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
           Copy-Item "$qtBin\libgcc_s_seh-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
           Copy-Item "$qtBin\libwinpthread-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
 
-      # 5. Pak til ZIP
+      # 5. Pak hele mappen til en ren ZIP-distribution
       - name: Create Portable Zip
         run: |
           Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
