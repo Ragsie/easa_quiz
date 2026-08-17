@@ -20,7 +20,8 @@ Module 13
 
 
 ## How to run
-1. download release
+1. download newest release
+2. unzip
 3. run it
 
 ### Technical Stack
