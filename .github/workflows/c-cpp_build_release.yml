@@ -2,7 +2,7 @@ name: Build & Publish Release
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Install & Cache Qt
+      # 1. Installer og cache Qt 6.6.2 med MinGW
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
@@ -30,7 +30,7 @@ jobs:
           cache: 'true'
           cache-key-prefix: '${{ runner.os }}-Qt-6.6.2-mingw64'
 
-      # 2. Configure & Build Project med CMake og Ninja
+      # 2. Konfigurer og byg projektet med CMake og Ninja
       - name: Configure CMake
         run: |
           cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
@@ -39,29 +39,33 @@ jobs:
         run: |
           cmake --build build --config Release
 
-# 3. Saml Qt DLL'er korrekt
-      - name: Collect Dependencies (windeployqt)
+      # 3. Klargør dist-mappe, hent DLL-afhængigheder og signer selve quiz-programmet
+      - name: Collect Dependencies & Sign Core Binary
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
           
-          # Kør windeployqt med eksplicit plugin- og biblioteks-mapping
+          # Hent Qt DLL'er samt MinGW compiler runtime DLL'er
           windeployqt --release --no-translations --compiler-runtime dist\quiz_app.exe
+          
+          # Opret Code Signing certifikat og signer quiz_app.exe
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=EASA B2 Quiz" -CertStoreLocation "Cert:\CurrentUser\My"
+          $certPath = "Cert:\CurrentUser\My\" + $cert.Thumbprint
+          Set-AuthenticodeSignature -FilePath "dist\quiz_app.exe" -Certificate (Get-Item $certPath) -TimestampServer "http://timestamp.digicert.com"
 
-      # 4. Pak med avanceret fejlfinding (fanger crash exit codes)
+      # 4. Pak alle filer og byg en C# Standalone Launcher med Shell Execution og Auto-Cleanup
       - name: Package Single-File Standalone EXE
         run: |
-          # 1. Pak dist-mappen ned
+          # Pak mappen ned i en intern ZIP
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
 
-          # 2. Launcher med crash-diagnostik
+          # Opret en Launcher, der bruger Windows Shell og rydder Temp op ved lukning
           $launcherCode = @"
           using System;
           using System.IO;
           using System.IO.Compression;
           using System.Diagnostics;
           using System.Reflection;
-          using System.Windows.Forms;
 
           class Program {
               [STAThread]
@@ -78,48 +82,38 @@ jobs:
                       string exePath = Path.Combine(tempFolder, "quiz_app.exe");
                       ProcessStartInfo psi = new ProcessStartInfo(exePath) {
                           WorkingDirectory = tempFolder,
-                          UseShellExecute = false
+                          UseShellExecute = true
                       };
 
                       using (Process proc = Process.Start(psi)) {
-                          proc.WaitForExit();
-                          
-                          // Hvis programmet crasher (exit code != 0), vis en popup med fejlkoden
-                          if (proc.ExitCode != 0) {
-                              MessageBox.Show("Programmet lukkede unormalt med fejlkode: 0x" + proc.ExitCode.ToString("X"), 
-                                              "EASA Quiz Crash", 
-                                              MessageBoxButtons.OK, 
-                                              MessageBoxIcon.Warning);
+                          if (proc != null) {
+                              proc.WaitForExit();
                           }
                       }
                   }
-                  catch (Exception ex) {
-                      MessageBox.Show(ex.ToString(), "Launcher Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                  }
+                  catch (Exception) { }
                   finally {
                       try {
                           if (Directory.Exists(tempFolder)) {
                               Directory.Delete(tempFolder, true);
                           }
                       }
-                      catch { }
+                      catch (Exception) { }
                   }
               }
           }
           "@
           [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
 
-          # 3. Kompiler
+          # Kompiler Launcher til Easa-B2-Quiz.exe uden konsolvindue
           $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-          & $csc /target:winexe /optimize+ /r:System.Windows.Forms.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
-          
-      - name: Self-Sign Executable
-        run: |
-          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=EASA B2 Quiz" -CertStoreLocation "Cert:\CurrentUser\My"
-          $certPath = "Cert:\CurrentUser\My\" + $cert.Thumbprint
-          Set-AuthenticodeSignature -FilePath ".\Easa-B2-Quiz.exe" -Certificate (Get-Item $certPath) -TimestampServer "http://timestamp.digicert.com"
+          & $csc /target:winexe /optimize+ /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
 
-      # 6. Upload Artifact
+          # Signer den færdige Easa-B2-Quiz.exe med samme certifikat
+          $cert = (Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1)
+          Set-AuthenticodeSignature -FilePath ".\Easa-B2-Quiz.exe" -Certificate $cert -TimestampServer "http://timestamp.digicert.com"
+
+      # 5. Upload Artifact (kan hentes direkte fra GitHub Actions loggen)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -127,7 +121,7 @@ jobs:
           path: Easa-B2-Quiz.exe
           if-no-files-found: error
 
-     # 7. Opret GitHub Release med unikt build-tag
+      # 6. Opret GitHub Release med unikt build-tag og marker som latest
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
