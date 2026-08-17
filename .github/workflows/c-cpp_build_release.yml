@@ -48,7 +48,7 @@ jobs:
           echo "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # 3. Konfigurer og byg projektet
+      # 3. Konfigurer og byg projektet med Ninja
       - name: Configure and Build
         run: |
           cmake -S code -B build -G "Ninja" `
@@ -57,101 +57,46 @@ jobs:
             -DCMAKE_CXX_COMPILER="${{ env.CXX_COMPILER }}"
           cmake --build build --config Release
 
-      # 4. Saml alle Qt & MinGW DLL'er i dist-mappen
+      # 4. Saml alle Qt & MinGW DLL'er i mappen
       - name: Collect Dependencies
         run: |
-          New-Item -ItemType Directory -Force -Path dist
-          Copy-Item build\Easa-B2-Quiz.exe dist\core_app.exe
+          New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
+          Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
 
           $qtBin = "${{ env.Qt6_DIR }}\bin"
           $mingwBin = "${{ env.MINGW_BIN }}"
 
-          # Kør windeployqt
-          & "$qtBin\windeployqt.exe" --release --compiler-runtime dist\core_app.exe
+          # Kør windeployqt til automatisk at hente Qt DLL'er og platform-plugins
+          & "$qtBin\windeployqt.exe" --release --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
 
-          # Kopier runtime DLL'er og OpenGL software rasterizer
-          Copy-Item "$mingwBin\libstdc++-6.dll" dist\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" dist\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$mingwBin\libwinpthread-1.dll" dist\ -Force -ErrorAction SilentlyContinue
-          Copy-Item "$qtBin\opengl32sw.dll" dist\ -Force -ErrorAction SilentlyContinue
+          # Kopier nødvendige C++ runtime DLL'er og OpenGL software rasterizer
+          Copy-Item "$mingwBin\libstdc++-6.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$mingwBin\libgcc_s_seh-1.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$mingwBin\libwinpthread-1.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
+          Copy-Item "$qtBin\opengl32sw.dll" Easa-B2-Quiz\ -Force -ErrorAction SilentlyContinue
 
-# 5. Pak alt ind i en Single-File EXE med Enigma Virtual Box
-      - name: Pack Single-File Executable with Enigma Virtual Box
+      # 5. Pak mappen ned til en ren ZIP-fil
+      - name: Create Portable Zip
         run: |
-          # 1. Hent og installer Enigma Virtual Box direkte
-          Invoke-WebRequest -Uri "https://enigmaprotector.com/assets/files/enigmavb.exe" -OutFile "enigmavb_setup.exe" -UserAgent "NativeHost"
-          Start-Process -FilePath ".\enigmavb_setup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
-
-          $distPath = (Resolve-Path "dist").Path
-          $coreExe = "$distPath\core_app.exe"
-          $outputExe = (Join-Path (Get-Location).Path "Easa-B2-Quiz.exe")
-
-          # 2. Generer Enigma Virtual Box projektfil (evb)
-          $evbXml = @"
-          <?xml version="1.0" encoding="utf-8"?>
-          <EnigmaVirtualBox Version="1.0">
-            <InputFile>$coreExe</InputFile>
-            <OutputFile>$outputExe</OutputFile>
-            <Files>
-              <File Type="2">
-                <Path>%DEFAULT FOLDER%</Path>
-                <Files>
-          "@
-
-          # Tilføj alle filer og mapper fra dist/ til den virtuelle in-memory pakke
-          Get-ChildItem -Path "dist" -Exclude "core_app.exe" | ForEach-Object {
-            if ($_.PSIsContainer) {
-              $dirName = $_.Name
-              $evbXml += "<File Type=`"2`"><Path>$dirName</Path><Files>"
-              Get-ChildItem -Path $_.FullName -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
-                $evbXml += "<File Type=`"3`"><Name>$($_.Name)</Name><File>$($_.FullName)</File></File>"
-              }
-              $evbXml += "</Files></File>"
-            } else {
-              $evbXml += "<File Type=`"3`"><Name>$($_.Name)</Name><File>$($_.FullName)</File></File>"
-            }
-          }
-
-          $evbXml += @"
-                </Files>
-              </File>
-            </Files>
-            <Options>
-              <ShareVirtualSystem>false</ShareVirtualSystem>
-              <MapExecutableWithTemporaryFile>false</MapExecutableWithTemporaryFile>
-              <AllowRunningOfVirtualExeFiles>true</AllowRunningOfVirtualExeFiles>
-            </Options>
-          </EnigmaVirtualBox>
-          "@
-
-          [System.IO.File]::WriteAllText("package.evb", $evbXml, [System.Text.Encoding]::UTF8)
-
-          # 3. Find og kør enigmavbconsole.exe
-          $enigmaConsole = (Get-ChildItem -Path "C:\Program Files (x86)\Enigma Virtual Box", "C:\Program Files\Enigma Virtual Box" -Filter "enigmavbconsole.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-          
-          if (-not $enigmaConsole) {
-              throw "Kunne ikke finde enigmavbconsole.exe efter installationen."
-          }
-
-          & "$enigmaConsole" package.evb
+          Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
 
       # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Easa-B2-Quiz
-          path: Easa-B2-Quiz.exe
+          name: Easa-B2-Quiz-Windows
+          path: Easa-B2-Quiz-Windows.zip
           if-no-files-found: error
 
-      # 7. Opret GitHub Release med den færdige Easa-B2-Quiz.exe
+      # 7. Opret GitHub Release med ZIP-filen
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Easa-B2-Quiz.exe
+          files: Easa-B2-Quiz-Windows.zip
           tag_name: build-${{ github.run_number }}
           name: "EASA B2 Quiz - Build ${{ github.run_number }}"
           make_latest: true
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}v 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
