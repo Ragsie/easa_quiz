@@ -39,25 +39,22 @@ jobs:
         run: |
           cmake --build build --config Release
 
-# 3. Saml Qt DLL'er OG MinGW Compiler DLL'er
-      - name: Collect Dependencies (windeployqt & MinGW DLLs)
+# 3. Saml Qt DLL'er korrekt
+      - name: Collect Dependencies (windeployqt)
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item build\Easa-B2-Quiz.exe dist\quiz_app.exe
           
-          
-          windeployqt --release --no-translations --no-system-d3d-compiler dist\quiz_app.exe
-          
-          
-          Copy-Item "C:\mingw64\bin\*.dll" dist\ -Force
+          # Kør windeployqt med eksplicit plugin- og biblioteks-mapping
+          windeployqt --release --no-translations --compiler-runtime dist\quiz_app.exe
 
-      # 4. Pak til 100% Silent Portable Standalone EXE med Auto-Cleanup
+      # 4. Pak med avanceret fejlfinding (fanger crash exit codes)
       - name: Package Single-File Standalone EXE
         run: |
-          
+          # 1. Pak dist-mappen ned
           & "C:\Program Files\7-Zip\7z.exe" a -r -mx9 app.zip .\dist\*
 
-          
+          # 2. Launcher med crash-diagnostik
           $launcherCode = @"
           using System;
           using System.IO;
@@ -86,10 +83,18 @@ jobs:
 
                       using (Process proc = Process.Start(psi)) {
                           proc.WaitForExit();
+                          
+                          // Hvis programmet crasher (exit code != 0), vis en popup med fejlkoden
+                          if (proc.ExitCode != 0) {
+                              MessageBox.Show("Programmet lukkede unormalt med fejlkode: 0x" + proc.ExitCode.ToString("X"), 
+                                              "EASA Quiz Crash", 
+                                              MessageBoxButtons.OK, 
+                                              MessageBoxIcon.Warning);
+                          }
                       }
                   }
                   catch (Exception ex) {
-                      MessageBox.Show(ex.Message, "Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                      MessageBox.Show(ex.ToString(), "Launcher Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                   }
                   finally {
                       try {
@@ -97,17 +102,17 @@ jobs:
                               Directory.Delete(tempFolder, true);
                           }
                       }
-                      catch (Exception) { }
+                      catch { }
                   }
               }
           }
           "@
           [System.IO.File]::WriteAllText("Launcher.cs", $launcherCode, [System.Text.Encoding]::UTF8)
 
-          
+          # 3. Kompiler
           $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
           & $csc /target:winexe /optimize+ /r:System.Windows.Forms.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /resource:app.zip /out:Easa-B2-Quiz.exe Launcher.cs
-
+          
       - name: Self-Sign Executable
         run: |
           $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=EASA B2 Quiz" -CertStoreLocation "Cert:\CurrentUser\My"
