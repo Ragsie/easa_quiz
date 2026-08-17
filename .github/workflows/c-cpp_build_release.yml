@@ -18,49 +18,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Installer den nøjagtige Qt version med MinGW 13.1.0
+      # 1. Installer Qt 6.11.1 med MinGW 13.1.0 toolchain
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          version: '6.8.0'
+          version: '6.11.1'
           host: 'windows'
           target: 'desktop'
           arch: 'win64_mingw'
+          tools: 'tools_mingw1310'
           dir: ${{ runner.temp }}
           cache: 'true'
-          cache-key-prefix: '${{ runner.os }}-Qt-6.8.0-mingw64'
+          cache-key-prefix: '${{ runner.os }}-Qt-6.11.1-mingw1310'
 
-      # 2. Opsæt PATH til Qt og MinGW værktøjer
-      - name: Setup Qt & MinGW Environment
+      # 2. Opsæt PATH og find den rigtige MinGW 13.1.0 compiler
+      - name: Setup Compiler and Paths
+        id: setup-tools
         run: |
-          $qtBin = "${{ env.Qt6_DIR }}\bin"
           $toolsPath = "${{ runner.temp }}\Qt\Tools"
-          $mingw = (Get-ChildItem -Path $toolsPath -Filter "g++.exe" -Recurse | Select-Object -First 1).DirectoryName
-          if ($mingw) {
-            echo "$mingw" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          }
+          $gxx = (Get-ChildItem -Path $toolsPath -Filter "g++.exe" -Recurse | Select-Object -First 1).FullName
+          $gcc = (Get-ChildItem -Path $toolsPath -Filter "gcc.exe" -Recurse | Select-Object -First 1).FullName
+          $mingwBin = (Get-Item $gxx).DirectoryName
+          $qtBin = "${{ env.Qt6_DIR }}\bin"
+
+          echo "Using C++ Compiler: $gxx"
+          echo "CXX_COMPILER=$gxx" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "C_COMPILER=$gcc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # Tilføj Qt og MinGW 13.1.0 til PATH før systemets egen MinGW
+          echo "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # 3. Konfigurer og byg projektet med Ninja
+      # 3. Konfigurer og byg projektet eksplicit med MinGW 13.1.0
       - name: Configure and Build
         run: |
-          cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+          cmake -S code -B build -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER="${{ env.C_COMPILER }}" `
+            -DCMAKE_CXX_COMPILER="${{ env.CXX_COMPILER }}"
           cmake --build build --config Release
 
-      # 4. Klargør mappen og saml alle Qt 6.8 / MinGW 13 DLL'er
-      - name: Collect Dependencies (windeployqt)
+      # 4. Klargør mappen og saml alle Qt / MinGW 13 DLL'er
+      - name: Collect Dependencies
         run: |
           New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
           Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
           
-          # Saml alle Qt-afhængigheder
+          # Kør windeployqt
           windeployqt --release --no-translations --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
-          
-          # Hent de matchende MinGW 13 runtime DLL'er
-          $qtBin = "${{ env.Qt6_DIR }}\bin"
-          Copy-Item "$qtBin\libstdc++-6.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
-          Copy-Item "$qtBin\libgcc_s_seh-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
-          Copy-Item "$qtBin\libwinpthread-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
 
       # 5. Pak hele mappen til en ren ZIP-distribution
       - name: Create Portable Zip
