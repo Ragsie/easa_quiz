@@ -75,18 +75,18 @@ jobs:
           Copy-Item "$mingwBin\libwinpthread-1.dll" dist\ -Force -ErrorAction SilentlyContinue
           Copy-Item "$qtBin\opengl32sw.dll" dist\ -Force -ErrorAction SilentlyContinue
 
-      # 5. Pak alt ind i en Single-File EXE med Enigma Virtual Box (In-Memory Virtualization)
+# 5. Pak alt ind i en Single-File EXE med Enigma Virtual Box
       - name: Pack Single-File Executable with Enigma Virtual Box
         run: |
-          # 1. Installer Enigma Virtual Box
-          choco install enigma-virtual-box -y --no-progress
+          # 1. Hent og installer Enigma Virtual Box direkte
+          Invoke-WebRequest -Uri "https://enigmaprotector.com/assets/files/enigmavb.exe" -OutFile "enigmavb_setup.exe" -UserAgent "NativeHost"
+          Start-Process -FilePath ".\enigmavb_setup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-" -Wait
 
           $distPath = (Resolve-Path "dist").Path
           $coreExe = "$distPath\core_app.exe"
           $outputExe = (Join-Path (Get-Location).Path "Easa-B2-Quiz.exe")
 
           # 2. Generer Enigma Virtual Box projektfil (evb)
-          # Dette fortæller Enigma at indlejre hele dist-mappens indhold virtuelt under %DEFAULT FOLDER%
           $evbXml = @"
           <?xml version="1.0" encoding="utf-8"?>
           <EnigmaVirtualBox Version="1.0">
@@ -98,13 +98,12 @@ jobs:
                 <Files>
           "@
 
-          # Tilføj alle filer og mapper fra dist/ til den virtuelle pakke
+          # Tilføj alle filer og mapper fra dist/ til den virtuelle in-memory pakke
           Get-ChildItem -Path "dist" -Exclude "core_app.exe" | ForEach-Object {
             if ($_.PSIsContainer) {
               $dirName = $_.Name
               $evbXml += "<File Type=`"2`"><Path>$dirName</Path><Files>"
               Get-ChildItem -Path $_.FullName -Recurse | Where-Object { -not $_.PSIsContainer } | ForEach-Object {
-                $subRel = $_.FullName.Substring($_.FullName.IndexOf($dirName) + $dirName.Length + 1)
                 $evbXml += "<File Type=`"3`"><Name>$($_.Name)</Name><File>$($_.FullName)</File></File>"
               }
               $evbXml += "</Files></File>"
@@ -127,8 +126,14 @@ jobs:
 
           [System.IO.File]::WriteAllText("package.evb", $evbXml, [System.Text.Encoding]::UTF8)
 
-          # 3. Kør Enigma Console Packer
-          & "C:\Program Files (x86)\Enigma Virtual Box\enigmavbconsole.exe" package.evb
+          # 3. Find og kør enigmavbconsole.exe
+          $enigmaConsole = (Get-ChildItem -Path "C:\Program Files (x86)\Enigma Virtual Box", "C:\Program Files\Enigma Virtual Box" -Filter "enigmavbconsole.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          
+          if (-not $enigmaConsole) {
+              throw "Kunne ikke finde enigmavbconsole.exe efter installationen."
+          }
+
+          & "$enigmaConsole" package.evb
 
       # 6. Upload Artifact
       - name: Upload Artifact
@@ -149,4 +154,4 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}v 
