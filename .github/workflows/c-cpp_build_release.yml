@@ -18,7 +18,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Installer og cache Qt 6.6.2 med MinGW
+      # 1. Installer Qt 6.6.2 inkl. medfølgende værktøjer
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
@@ -30,28 +30,45 @@ jobs:
           cache: 'true'
           cache-key-prefix: '${{ runner.os }}-Qt-6.6.2-mingw64'
 
-      # 2. Konfigurer og byg projektet med CMake og Ninja
-      - name: Configure CMake
+      # 2. Sæt PATH til Qt's egen MinGW compiler og værktøjer
+      - name: Setup Qt MinGW Environment
+        run: |
+          # Find den MinGW der hører til Qt installationen
+          $qtBin = "${{ env.Qt6_DIR }}\bin"
+          $mingwBin = "${{ runner.temp }}\Qt\Tools\mingw1120_64\bin"
+          
+          if (Test-Path $mingwBin) {
+            echo "$mingwBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+          echo "$qtBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # 3. Konfigurer og byg med CMake
+      - name: Configure and Build
         run: |
           cmake -S code -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build Project
-        run: |
           cmake --build build --config Release
 
-      # 3. Klargør dist-mappen med alle nødvendige Qt & MinGW DLL'er
+      # 4. Klargør mappe og kopier DLL'er
       - name: Collect Dependencies
         run: |
           New-Item -ItemType Directory -Force -Path Easa-B2-Quiz
           Copy-Item build\Easa-B2-Quiz.exe Easa-B2-Quiz\Easa-B2-Quiz.exe
+          
+          # Kør windeployqt
           windeployqt --release --no-translations --compiler-runtime Easa-B2-Quiz\Easa-B2-Quiz.exe
+          
+          # Hent de nødvendige MinGW DLL'er direkte fra Qt's bin
+          $qtBin = "${{ env.Qt6_DIR }}\bin"
+          Copy-Item "$qtBin\libstdc++-6.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
+          Copy-Item "$qtBin\libgcc_s_seh-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
+          Copy-Item "$qtBin\libwinpthread-1.dll" Easa-B2-Quiz\ -ErrorAction SilentlyContinue
 
-      # 4. Pak hele mappen til en ren ZIP-fil
+      # 5. Pak til ZIP
       - name: Create Portable Zip
         run: |
           Compress-Archive -Path Easa-B2-Quiz -DestinationPath Easa-B2-Quiz-Windows.zip -Force
 
-      # 5. Upload Artifact
+      # 6. Upload Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -59,7 +76,7 @@ jobs:
           path: Easa-B2-Quiz-Windows.zip
           if-no-files-found: error
 
-      # 6. Opret GitHub Release
+      # 7. Opret GitHub Release
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
