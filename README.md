@@ -15,7 +15,7 @@ High Performance: Designed for instant responsiveness and low system resource co
 
 Security & Integrity: The question database is safely embedded into the binary code, preventing unauthorized manipulation of questions or answers. 
 
-Questions has been made with help of AI with lufthansa materials
+Questions has been made with help of AI with lufthansa materials Question bank is at 800+
 
 ## supported modules
 Module 13
