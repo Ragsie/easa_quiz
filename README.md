@@ -1,4 +1,5 @@
 # EASA Part-66 B2 Exam Preparation
+[![Build & Publish Release](https://github.com/Ragsie/easa_quiz/actions/workflows/c-cpp_build_release.yml/badge.svg)](https://github.com/Ragsie/easa_quiz/actions/workflows/c-cpp_build_release.yml)
 A modern, high-performance, and user-friendly quiz application designed for students preparing for the EASA Part-66 B2 certification exams. Built with C++ and Qt, this application provides an efficient and focused study experience.
 <img width="957" height="757" alt="image" src="https://github.com/user-attachments/assets/3396e493-1766-4a79-bb45-289b2c09a9d3" />
 
